@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react"; // Pastikan 'React' ikut diimpor
+"use client";
+
+import React, { useState, useEffect } from "react";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/Icon";
-
-// Sisa kode komponen Anda di bawah...
-// Definisikan tipe data untuk item aktivitas
+// Definisi tipe data untuk item history
 interface RecentItem {
   title: string;
   tag: "Speech to Text" | "Text to Speech" | "AI Assistant";
