@@ -1,37 +1,138 @@
+import React, { useState, useEffect } from "react"; // Pastikan 'React' ikut diimpor
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/Icon";
 
-const RECENT_ITEMS = [
-  {
-    title: "Rapat Strategi Marketing Q4",
-    icon: "meeting_room",
-    tag: "Business",
-    time: "14:30 • 45m",
-  },
-  {
-    title: "Kelas Bahasa Inggris Online",
-    icon: "school",
-    tag: "Pendidikan",
-    time: "10:00 • 60m",
-  },
-  {
-    title: "Konsultasi Dokter Spesialis",
-    icon: "medical_services",
-    tag: "Kesehatan",
-    time: "09:15 • 20m",
-  },
-];
+// Sisa kode komponen Anda di bawah...
+// Definisikan tipe data untuk item aktivitas
+interface RecentItem {
+  title: string;
+  tag: "Speech to Text" | "Text to Speech" | "AI Assistant";
+  time: string;
+  icon: string;
+}
 
 export default function DashboardPage() {
+  // State Autentikasi
+  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  
+  // State Recent Items (Mulai dari kosong untuk user baru)
+  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
+  
+  // State Interaktivitas Aplikasi
+  const [cloudStorage, setCloudStorage] = useState(0.0); // 0 GB terpakai untuk user baru
+  const totalStorage = 5.0;
+
+  // Cek sesi login saat component dimuat
+  useEffect(() => {
+    const savedUser = localStorage.getItem("hearbridge_user");
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+      // Simulasi mengambil data history spesifik user dari localStorage jika ada
+      const savedHistory = localStorage.getItem(`history_${JSON.parse(savedUser).name}`);
+      if (savedHistory) {
+        setRecentItems(JSON.parse(savedHistory));
+        setCloudStorage(4.25); // simulasi storage terisi jika ada history
+      }
+    }
+  }, []);
+
+  // Handler Login
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authEmail || !authPassword) {
+      alert("Silakan isi email dan password!");
+      return;
+    }
+    const loggedInUser = { name: "Budi" };
+    localStorage.setItem("hearbridge_user", JSON.stringify(loggedInUser));
+    setUser(loggedInUser);
+    
+    // User baru login -> history diset kosong []
+    setRecentItems([]);
+    setCloudStorage(0.0);
+  };
+
+  // Handler Logout
+  const handleLogout = () => {
+    localStorage.removeItem("hearbridge_user");
+    setUser(null);
+  };
+
+  // Handler Unduh Dokumen
+  const handleDownload = (title: string, format: "PDF" | "TXT") => {
+    alert(`Mengunduh "${title}" dalam format ${format}...`);
+  };
+
+  // Handler Upgrade Storage
+  const handleUpgradeStorage = () => {
+    alert("Membuka halaman pembayaran upgrade Cloud Storage ke 50 GB...");
+  };
+
+  // Tampilan Halaman Login jika Belum Terautentikasi
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center p-margin-mobile">
+        <div className="w-full max-w-md bg-surface-container-lowest p-8 rounded-3xl border border-outline-variant shadow-xl">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-primary mb-2">HearBridge AI</h1>
+            <p className="text-sm text-on-surface-variant">
+              Masuk untuk mengakses dashboard komunikasi digital Anda
+            </p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-on-surface mb-2">Email</label>
+              <input
+                type="email"
+                required
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                placeholder="budi@email.com"
+                className="w-full px-4 py-3 rounded-xl bg-surface border border-outline-variant text-on-surface focus:ring-2 focus:ring-primary outline-none transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-on-surface mb-2">Password</label>
+              <input
+                type="password"
+                required
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-3 rounded-xl bg-surface border border-outline-variant text-on-surface focus:ring-2 focus:ring-primary outline-none transition-all"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full py-3 bg-primary text-on-primary font-bold rounded-xl hover:shadow-lg transition-all active:scale-95"
+            >
+              Masuk Ke Dashboard
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AppShell>
       <main className="flex-1 p-margin-mobile md:p-margin-desktop bg-surface min-h-screen">
         {/* Dashboard Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-gut-xl">
           <div>
-            <h2 className="font-face-headline-lg text-headline-lg text-on-surface">
-              Halo, Budi!
-            </h2>
+            <div className="flex items-center gap-4">
+              <h2 className="font-face-headline-lg text-headline-lg text-on-surface">
+                Halo, {user.name}!
+              </h2>
+              <button 
+                onClick={handleLogout}
+                className="text-xs px-3 py-1 bg-surface-container-high hover:bg-error/10 hover:text-error text-on-surface-variant font-bold rounded-full transition-colors flex items-center gap-1"
+              >
+                <Icon name="logout" className="text-sm" /> Keluar
+              </button>
+            </div>
             <p className="font-body-md text-body-md text-on-surface-variant mt-1">
               Siap untuk mengubah suara menjadi data yang bermakna hari ini?
             </p>
@@ -62,20 +163,20 @@ export default function DashboardPage() {
                 Jumlah Transkripsi
               </p>
               <h3 className="font-face-display-lg text-headline-lg text-on-surface">
-                1.284
+                {recentItems.length}
               </h3>
             </div>
           </div>
           <div className="bg-surface-container-lowest p-gut-lg rounded-xl border border-outline-variant custom-shadow flex items-center gap-gut-lg">
             <div className="w-14 h-14 bg-surface-container-high rounded-xl flex items-center justify-center text-primary">
-              <Icon name="audio_file" className="text-3xl" filled />
+              <Icon name="audio_file" className="text-3xl" />
             </div>
             <div>
               <p className="font-caption text-caption text-on-surface-variant uppercase tracking-wider">
                 Audio Diproses
               </p>
               <h3 className="font-face-display-lg text-headline-lg text-on-surface">
-                42.5 Jam
+                {recentItems.length > 0 ? "42.5 Jam" : "0 Jam"}
               </h3>
             </div>
           </div>
@@ -88,7 +189,7 @@ export default function DashboardPage() {
                 Dokumen Tersimpan
               </p>
               <h3 className="font-face-display-lg text-headline-lg text-on-surface">
-                856
+                {recentItems.length}
               </h3>
             </div>
           </div>
@@ -102,155 +203,112 @@ export default function DashboardPage() {
               <h3 className="font-title-lg text-title-lg text-on-surface">
                 Aktivitas Terakhir
               </h3>
-              <a
-                href="/history"
-                className="text-primary font-label-md text-label-md flex items-center gap-gut-xs hover:underline decoration-2"
-              >
-                Lihat Semua History
-                <Icon name="arrow_forward" />
-              </a>
-            </div>
-            <div className="space-y-gut-md">
-              {RECENT_ITEMS.map((item) => (
-                <div
-                  key={item.title}
-                  className="bg-surface-container-lowest p-gut-md rounded-xl border border-outline-variant custom-shadow flex flex-col md:flex-row md:items-center justify-between gap-gut-md group hover:border-primary transition-colors"
+              {recentItems.length > 0 && (
+                <a
+                  href="/history"
+                  className="text-primary font-label-md text-label-md flex items-center gap-gut-xs hover:underline decoration-2"
                 >
-                  <div className="flex items-center gap-gut-md">
-                    <div className="w-12 h-12 bg-surface-container rounded-lg flex items-center justify-center text-primary-container">
-                      <Icon name={item.icon} />
-                    </div>
-                    <div>
-                      <h4 className="font-title-lg text-title-lg text-on-surface text-[18px]">
-                        {item.title}
-                      </h4>
-                      <div className="flex items-center gap-gut-sm mt-gut-xs">
-                        <span className="px-2 py-0.5 bg-surface-container-high rounded text-[10px] font-bold text-on-secondary-container uppercase">
-                          {item.tag}
-                        </span>
-                        <span className="font-caption text-caption text-on-surface-variant flex items-center gap-1">
-                          <Icon name="schedule" className="text-[14px]" />{" "}
-                          {item.time}
-                        </span>
+                  Lihat Semua History
+                  <Icon name="arrow_forward" />
+                </a>
+              )}
+            </div>
+
+            {/* Kondisional Rendering: Jika kosong tampilkan UI khusus Empty State */}
+            {recentItems.length === 0 ? (
+              <div className="bg-surface-container-lowest border border-dashed border-outline-variant rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[350px]">
+                <div className="w-16 h-16 bg-surface-container-high rounded-full flex items-center justify-center text-on-surface-variant mb-4">
+                  <Icon name="history_toggle_off" className="text-3xl" />
+                </div>
+                <h4 className="font-title-lg text-title-lg text-on-surface mb-2">
+                  Belum Ada Aktivitas
+                </h4>
+                <p className="font-body-md text-body-md text-on-surface-variant max-w-sm mb-6">
+                  Anda belum melakukan transkripsi atau menggunakan AI Assistant. Mulai sekarang untuk melihat history Anda di sini.
+                </p>
+                <div className="flex gap-4">
+                  <a href="/speech-to-text" className="px-4 py-2 bg-primary text-on-primary font-label-md rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-2">
+                    <Icon name="mic" /> Mulai STT
+                  </a>
+                  <a href="/text-to-speech" className="px-4 py-2 bg-surface-container-high text-on-surface font-label-md rounded-xl hover:bg-surface-container-highest transition-all active:scale-95 flex items-center gap-2">
+                    <Icon name="volume_up" /> Mulai TTS
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-gut-md">
+                {recentItems.map((item) => (
+                  <div
+                    key={item.title}
+                    className="bg-surface-container-lowest p-gut-md rounded-xl border border-outline-variant custom-shadow flex flex-col md:flex-row md:items-center justify-between gap-gut-md group hover:border-primary transition-colors"
+                  >
+                    <div className="flex items-center gap-gut-md">
+                      <div className="w-12 h-12 bg-surface-container rounded-lg flex items-center justify-center text-primary">
+                        <Icon name={item.icon} />
+                      </div>
+                      <div>
+                        <h4 className="font-title-lg text-title-lg text-on-surface text-[18px]">
+                          {item.title}
+                        </h4>
+                        <div className="flex items-center gap-gut-sm mt-gut-xs">
+                          <span className="px-2 py-0.5 bg-surface-container-high rounded text-[10px] font-bold text-on-secondary-container uppercase">
+                            {item.tag}
+                          </span>
+                          <span className="font-caption text-caption text-on-surface-variant flex items-center gap-1">
+                            <Icon name="schedule" className="text-[14px]" />{" "}
+                            {item.time}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-gut-sm">
+                      <button
+                        onClick={() => handleDownload(item.title, "PDF")}
+                        className="flex items-center gap-gut-xs px-gut-md py-gut-sm bg-surface-container hover:bg-primary-container hover:text-primary transition-all rounded-xl"
+                      >
+                        <Icon name="picture_as_pdf" className="text-base" /> PDF
+                      </button>
+                      <button
+                        onClick={() => handleDownload(item.title, "TXT")}
+                        className="flex items-center gap-gut-xs px-gut-md py-gut-sm bg-surface-container hover:bg-primary-container hover:text-primary transition-all rounded-xl"
+                      >
+                        <Icon name="article" className="text-base" /> TXT
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-gut-sm">
-                    <button className="flex items-center gap-gut-xs px-gut-md py-gut-sm bg-surface-container hover:bg-primary-container hover:text-on-primary-container rounded-lg font-label-md text-label-md transition-all active:scale-95">
-                      <Icon name="picture_as_pdf" className="text-[20px]" />
-                      PDF
-                    </button>
-                    <button className="flex items-center gap-gut-xs px-gut-md py-gut-sm bg-surface-container hover:bg-primary-container hover:text-on-primary-container rounded-lg font-label-md text-label-md transition-all active:scale-95">
-                      <Icon name="article" className="text-[20px]" />
-                      TXT
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
 
-          {/* Sidebar Insights */}
-          <section className="space-y-gut-lg">
-            <div className="bg-inverse-surface text-on-primary p-gut-lg rounded-xl custom-shadow overflow-hidden relative group">
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-gut-md">
-                  <h4 className="font-title-lg text-title-lg flex items-center gap-gut-sm">
-                    <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75" />
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-error" />
-                    </span>
-                    Standby Listening
+          <aside className="space-y-gut-2xl">
+            <div className="bg-surface-container-lowest p-gut-lg rounded-2xl border border-outline-variant custom-shadow">
+              <div className="flex items-center justify-between mb-gut-md">
+                <div>
+                  <p className="font-caption text-caption text-on-surface-variant uppercase tracking-wider">
+                    Cloud Storage
+                  </p>
+                  <h4 className="font-title-lg text-title-lg text-on-surface">
+                    {cloudStorage.toFixed(2)} GB / {totalStorage.toFixed(0)} GB
                   </h4>
-                  <span className="font-caption text-caption opacity-80">
-                    Device: Internal Mic
-                  </span>
                 </div>
-                <div className="flex items-end gap-1 h-8 mb-gut-md">
-                  {[0.1, 0.3, 0.2, 0.4, 0.1, 0.5].map((d, i) => (
-                    <div
-                      key={i}
-                      className="waveform-bar w-1 bg-primary-fixed rounded-full"
-                      style={{ animationDelay: `${d}s` }}
-                    />
-                  ))}
-                </div>
-                <p className="font-body-md text-body-md opacity-90 italic">
-                  &quot;Gunakan asisten AI untuk merangkum poin-poin penting
-                  secara otomatis...&quot;
-                </p>
+                <Icon name="cloud" className="text-3xl text-primary" />
               </div>
-              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-primary opacity-20 blur-3xl rounded-full group-hover:opacity-40 transition-opacity" />
-            </div>
-
-            <div className="bg-surface-container-lowest p-gut-lg rounded-xl border border-outline-variant custom-shadow">
-              <div className="flex justify-between items-center mb-gut-md">
-                <h4 className="font-title-lg text-title-lg text-on-surface">
-                  Penyimpanan Cloud
-                </h4>
-                <span className="font-label-md text-label-md text-primary font-bold">
-                  85%
-                </span>
+              <div className="h-2 w-full rounded-full bg-surface-container-high overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${(cloudStorage / totalStorage) * 100}%` }}
+                />
               </div>
-              <div className="w-full bg-surface-container-highest h-3 rounded-full overflow-hidden mb-gut-sm">
-                <div className="bg-primary h-full w-[85%] rounded-full" />
-              </div>
-              <div className="flex justify-between font-caption text-caption text-on-surface-variant">
-                <span>4.25 GB Terpakai</span>
-                <span>5 GB Total</span>
-              </div>
-              <button className="w-full mt-gut-lg py-gut-md border border-primary text-primary rounded-xl font-label-md text-label-md hover:bg-primary-container hover:text-on-primary-container transition-all">
-                Upgrade Penyimpanan
+              <button
+                onClick={handleUpgradeStorage}
+                className="mt-gut-lg w-full py-3 bg-primary text-on-primary font-bold rounded-xl hover:shadow-lg transition-all active:scale-95"
+              >
+                Upgrade Storage
               </button>
             </div>
-
-            <div className="p-gut-lg rounded-xl bg-inverse-surface text-on-primary flex flex-col justify-end min-h-[200px] relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-t from-on-background/80 to-transparent" />
-              <div className="relative z-10">
-                <h4 className="font-title-lg text-title-lg">Tips Efisiensi</h4>
-                <p className="font-body-md text-body-md mt-1 opacity-90">
-                  Cara menggunakan AI Assistant untuk notulensi rapat otomatis.
-                </p>
-                <a
-                  href="/assistant"
-                  className="mt-gut-md text-primary-fixed font-bold flex items-center gap-1 hover:underline w-fit"
-                >
-                  Baca Tutorial
-                  <Icon name="open_in_new" className="text-[18px]" />
-                </a>
-              </div>
-            </div>
-          </section>
+          </aside>
         </div>
-
-        {/* Footer (Within Canvas) */}
-        <footer className="mt-gut-3xl pt-gut-2xl border-t border-outline-variant w-full">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-gut-lg text-center md:text-left">
-            <div>
-              <h5 className="font-title-lg text-title-lg font-bold text-primary">
-                HearBridge AI
-              </h5>
-              <p className="font-body-md text-body-md text-on-surface-variant mt-gut-xs max-w-md">
-                © 2024 HearBridge AI. Jembatan Komunikasi Digital untuk Semua.
-                Membantu komunitas tunarungu berkomunikasi lebih baik.
-              </p>
-            </div>
-            <div className="flex flex-wrap justify-center md:justify-end gap-gut-lg">
-              <a className="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">
-                Privacy Policy
-              </a>
-              <a className="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">
-                Terms of Service
-              </a>
-              <a className="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">
-                Contact Support
-              </a>
-              <a className="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">
-                Help Center
-              </a>
-            </div>
-          </div>
-        </footer>
       </main>
     </AppShell>
   );
