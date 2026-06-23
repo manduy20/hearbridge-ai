@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/Icon";
+import { addHistory } from "@/storage";
 
 type Message = {
   id: number;
@@ -25,19 +26,58 @@ const SUGGESTED_ACTIONS = [
 
 function generateReply(userText: string): string {
   const lower = userText.toLowerCase();
-  if (lower.includes("tts") || lower.includes("text-to-speech") || lower.includes("suara")) {
-    return "Untuk hasil suara yang lebih natural di fitur Text-to-Speech: gunakan tanda baca yang tepat untuk jeda alami, pilih suara yang sesuai bahasa Anda, dan atur kecepatan bicara sekitar 0.9x–1x untuk kejelasan maksimal. Anda bisa mencobanya langsung di halaman Text-to-Speech.";
+
+  if (
+    lower.includes("presiden indonesia") ||
+    lower.includes("presiden indo")
+  ) {
+    return "Presiden Indonesia saat ini adalah Prabowo Subianto.";
   }
-  if (lower.includes("stt") || lower.includes("speech-to-text") || lower.includes("transkrip")) {
-    return "Fitur Speech-to-Text mengubah suara menjadi teks secara real-time. Pastikan mikrofon Anda aktif, pilih bahasa yang sesuai, lalu tekan tombol mikrofon besar di halaman Speech-to-Text untuk mulai merekam.";
+
+  if (
+    lower.includes("wakil presiden") ||
+    lower.includes("wapres")
+  ) {
+    return "Wakil Presiden Indonesia saat ini adalah Gibran Rakabuming Raka.";
   }
-  if (lower.includes("ringkas") || lower.includes("rangkum") || lower.includes("summary")) {
-    return "Saat ini ringkasan otomatis bekerja berdasarkan transkripsi yang sudah Anda simpan. Selesaikan sesi rekaman di halaman Speech-to-Text terlebih dahulu, lalu saya bisa membantu menyoroti poin-poin pentingnya.";
+
+  if (
+    lower.includes("hearbridge")
+  ) {
+    return "HearBridge AI adalah platform komunikasi digital yang menyediakan Speech-to-Text, Text-to-Speech, dan AI Assistant untuk membantu komunikasi yang lebih mudah dan inklusif.";
   }
-  if (lower.includes("bahasa")) {
-    return "Anda dapat mengganti bahasa transkripsi di halaman Speech-to-Text melalui menu pilihan bahasa di pojok kanan atas area visualisasi suara. Saat ini tersedia Bahasa Indonesia dan English (US).";
+
+  if (
+    lower.includes("tts") ||
+    lower.includes("text-to-speech") ||
+    lower.includes("suara")
+  ) {
+    return "Untuk hasil suara yang lebih natural di fitur Text-to-Speech, gunakan tanda baca yang tepat, pilih bahasa yang sesuai, dan atur kecepatan suara sekitar 0.9x–1x.";
   }
-  return "Terima kasih atas pertanyaannya! Saya HearBridge Assistant, siap membantu seputar Speech-to-Text, Text-to-Speech, atau tips komunikasi lainnya. Bisa diceritakan lebih detail apa yang ingin Anda lakukan?";
+
+  if (
+    lower.includes("stt") ||
+    lower.includes("speech-to-text") ||
+    lower.includes("transkrip")
+  ) {
+    return "Fitur Speech-to-Text mengubah suara menjadi teks secara realtime menggunakan mikrofon perangkat Anda.";
+  }
+
+  if (
+    lower.includes("ringkas") ||
+    lower.includes("rangkum") ||
+    lower.includes("summary")
+  ) {
+    return "Saya dapat membantu merangkum hasil transkripsi yang telah disimpan dari fitur Speech-to-Text.";
+  }
+
+  if (
+    lower.includes("bahasa")
+  ) {
+    return "Saat ini tersedia Bahasa Indonesia dan English untuk proses transkripsi maupun Text-to-Speech.";
+  }
+
+  return "Maaf, saya belum memiliki AI online. Untuk menjawab pertanyaan umum secara cerdas, hubungkan aplikasi ke OpenAI API melalui backend Next.js.";
 }
 
 export default function AssistantClient() {
@@ -61,6 +101,11 @@ export default function AssistantClient() {
 
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
+    addHistory(
+  text,
+  "AI Assistant",
+  "smart_toy"
+);
     idRef.current += 1;
     const userMsg: Message = {
       id: idRef.current,
@@ -170,6 +215,13 @@ export default function AssistantClient() {
                 </p>
               </div>
             )}
+            {isTyping && (
+  <div className="mb-4">
+    <div className="inline-block bg-[#1B2530] rounded-2xl p-4">
+      HearBridge AI sedang mengetik...
+    </div>
+  </div>
+)}
             <div ref={chatEndRef} />
           </div>
 

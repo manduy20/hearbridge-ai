@@ -1,315 +1,312 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import AppShell from "@/components/AppShell";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
-// Definisi tipe data untuk item history
-interface RecentItem {
-  title: string;
-  tag: "Speech to Text" | "Text to Speech" | "AI Assistant";
-  time: string;
-  icon: string;
+
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
 }
 
-export default function DashboardPage() {
-  // State Autentikasi
-  const [user, setUser] = useState<{ name: string } | null>(null);
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  
-  // State Recent Items (Mulai dari kosong untuk user baru)
-  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
-  
-  // State Interaktivitas Aplikasi
-  const [cloudStorage, setCloudStorage] = useState(0.0); // 0 GB terpakai untuk user baru
-  const totalStorage = 5.0;
+interface User {
+  name: string;
+  email: string;
+}
 
-  // Cek sesi login saat component dimuat
+export default function SpeechToTextPage() {
+  const router = useRouter();
+
+  const [user, setUser] = useState<User | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [supported, setSupported] = useState(true);
+
+  const recognitionRef = useRef<any>(null);
+
   useEffect(() => {
     const savedUser = localStorage.getItem("hearbridge_user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      // Simulasi mengambil data history spesifik user dari localStorage jika ada
-      const savedHistory = localStorage.getItem(`history_${JSON.parse(savedUser).name}`);
-      if (savedHistory) {
-        setRecentItems(JSON.parse(savedHistory));
-        setCloudStorage(4.25); // simulasi storage terisi jika ada history
-      }
-    }
-  }, []);
 
-  // Handler Login
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!authEmail || !authPassword) {
-      alert("Silakan isi email dan password!");
+    if (!savedUser) {
+      router.replace("/login");
       return;
     }
-    const loggedInUser = { name: "Budi" };
-    localStorage.setItem("hearbridge_user", JSON.stringify(loggedInUser));
-    setUser(loggedInUser);
-    
-    // User baru login -> history diset kosong []
-    setRecentItems([]);
-    setCloudStorage(0.0);
+
+    setUser(JSON.parse(savedUser));
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setSupported(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+
+    recognition.lang = "id-ID";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event: any) => {
+      let text = "";
+
+      for (let i = 0; i < event.results.length; i++) {
+        text += event.results[i][0].transcript + " ";
+      }
+
+      setTranscript(text);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+  }, [router]);
+
+  const startListening = () => {
+    if (!recognitionRef.current) return;
+
+    recognitionRef.current.start();
+    setIsListening(true);
   };
 
-  // Handler Logout
-  const handleLogout = () => {
-    localStorage.removeItem("hearbridge_user");
-    setUser(null);
+  const stopListening = () => {
+    if (!recognitionRef.current) return;
+
+    recognitionRef.current.stop();
+    setIsListening(false);
   };
 
-  // Handler Unduh Dokumen
-  const handleDownload = (title: string, format: "PDF" | "TXT") => {
-    alert(`Mengunduh "${title}" dalam format ${format}...`);
+  const saveTranscript = () => {
+    if (!user || !transcript.trim()) return;
+
+    const key = `history_${user.email}`;
+
+    const oldHistory = JSON.parse(
+      localStorage.getItem(key) || "[]"
+    );
+
+    oldHistory.unshift({
+      title:
+        transcript.length > 40
+          ? transcript.slice(0, 40) + "..."
+          : transcript,
+      tag: "Speech to Text",
+      time: new Date().toLocaleString("id-ID"),
+      icon: "mic",
+      content: transcript,
+    });
+
+    localStorage.setItem(
+      key,
+      JSON.stringify(oldHistory)
+    );
+
+    alert("Transkripsi berhasil disimpan.");
   };
 
-  // Handler Upgrade Storage
-  const handleUpgradeStorage = () => {
-    alert("Membuka halaman pembayaran upgrade Cloud Storage ke 50 GB...");
+  const downloadTXT = () => {
+    const blob = new Blob([transcript], {
+      type: "text/plain",
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+
+    a.href = url;
+    a.download = "transkripsi.txt";
+    a.click();
+
+    URL.revokeObjectURL(url);
   };
 
-  // Tampilan Halaman Login jika Belum Terautentikasi
-  if (!user) {
+  if (!supported) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center p-margin-mobile">
-        <div className="w-full max-w-md bg-surface-container-lowest p-8 rounded-3xl border border-outline-variant shadow-xl">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-primary mb-2">HearBridge AI</h1>
-            <p className="text-sm text-on-surface-variant">
-              Masuk untuk mengakses dashboard komunikasi digital Anda
-            </p>
-          </div>
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-on-surface mb-2">Email</label>
-              <input
-                type="email"
-                required
-                value={authEmail}
-                onChange={(e) => setAuthEmail(e.target.value)}
-                placeholder="budi@email.com"
-                className="w-full px-4 py-3 rounded-xl bg-surface border border-outline-variant text-on-surface focus:ring-2 focus:ring-primary outline-none transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-on-surface mb-2">Password</label>
-              <input
-                type="password"
-                required
-                value={authPassword}
-                onChange={(e) => setAuthPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-xl bg-surface border border-outline-variant text-on-surface focus:ring-2 focus:ring-primary outline-none transition-all"
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full py-3 bg-primary text-on-primary font-bold rounded-xl hover:shadow-lg transition-all active:scale-95"
-            >
-              Masuk Ke Dashboard
-            </button>
-          </form>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        Browser tidak mendukung Speech Recognition.
       </div>
     );
   }
 
-  return (
-    <AppShell>
-      <main className="flex-1 p-margin-mobile md:p-margin-desktop bg-surface min-h-screen">
-        {/* Dashboard Header */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-gut-xl">
-          <div>
-            <div className="flex items-center gap-4">
-              <h2 className="font-face-headline-lg text-headline-lg text-on-surface">
-                Halo, {user.name}!
-              </h2>
-              <button 
-                onClick={handleLogout}
-                className="text-xs px-3 py-1 bg-surface-container-high hover:bg-error/10 hover:text-error text-on-surface-variant font-bold rounded-full transition-colors flex items-center gap-1"
-              >
-                <Icon name="logout" className="text-sm" /> Keluar
-              </button>
-            </div>
-            <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-              Siap untuk mengubah suara menjadi data yang bermakna hari ini?
-            </p>
-          </div>
-          <div className="flex items-center gap-gut-sm">
-            <div className="bg-surface-container-highest p-base rounded-full text-primary">
-              <Icon name="calendar_today" />
-            </div>
-            <span className="font-label-md text-label-md text-on-surface">
-              {new Date().toLocaleDateString("id-ID", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </span>
-          </div>
-        </header>
+ return (
+  
+  <main className="min-h-screen bg-[#081420] text-white overflow-hidden relative">
 
-        {/* Bento Stats Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-gut-lg mb-gut-2xl">
-          <div className="bg-surface-container-lowest p-gut-lg rounded-xl border border-outline-variant custom-shadow flex items-center gap-gut-lg">
-            <div className="w-14 h-14 bg-primary-fixed rounded-xl flex items-center justify-center text-primary">
-              <Icon name="description" className="text-3xl" />
-            </div>
-            <div>
-              <p className="font-caption text-caption text-on-surface-variant uppercase tracking-wider">
-                Jumlah Transkripsi
-              </p>
-              <h3 className="font-face-display-lg text-headline-lg text-on-surface">
-                {recentItems.length}
-              </h3>
-            </div>
-          </div>
-          <div className="bg-surface-container-lowest p-gut-lg rounded-xl border border-outline-variant custom-shadow flex items-center gap-gut-lg">
-            <div className="w-14 h-14 bg-surface-container-high rounded-xl flex items-center justify-center text-primary">
-              <Icon name="audio_file" className="text-3xl" />
-            </div>
-            <div>
-              <p className="font-caption text-caption text-on-surface-variant uppercase tracking-wider">
-                Audio Diproses
-              </p>
-              <h3 className="font-face-display-lg text-headline-lg text-on-surface">
-                {recentItems.length > 0 ? "42.5 Jam" : "0 Jam"}
-              </h3>
-            </div>
-          </div>
-          <div className="bg-surface-container-lowest p-gut-lg rounded-xl border border-outline-variant custom-shadow flex items-center gap-gut-lg">
-            <div className="w-14 h-14 bg-tertiary-fixed rounded-xl flex items-center justify-center text-tertiary">
-              <Icon name="folder_shared" className="text-3xl" />
-            </div>
-            <div>
-              <p className="font-caption text-caption text-on-surface-variant uppercase tracking-wider">
-                Dokumen Tersimpan
-              </p>
-              <h3 className="font-face-display-lg text-headline-lg text-on-surface">
-                {recentItems.length}
-              </h3>
-            </div>
-          </div>
-        </section>
+    {/* Glow Background */}
+    <div className="absolute top-20 left-0 w-96 h-96 bg-[#FF8B5E]/20 blur-[140px] rounded-full" />
+    <div className="absolute bottom-20 right-0 w-96 h-96 bg-[#5EC8FF]/20 blur-[140px] rounded-full" />
 
-        {/* Main Dashboard Layout */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-gut-2xl">
-          {/* Recent Transcriptions List */}
-          <section className="xl:col-span-2">
-            <div className="flex justify-between items-center mb-gut-md">
-              <h3 className="font-title-lg text-title-lg text-on-surface">
-                Aktivitas Terakhir
-              </h3>
-              {recentItems.length > 0 && (
-                <a
-                  href="/history"
-                  className="text-primary font-label-md text-label-md flex items-center gap-gut-xs hover:underline decoration-2"
-                >
-                  Lihat Semua History
-                  <Icon name="arrow_forward" />
-                </a>
-              )}
+    <div className="relative z-10 max-w-7xl mx-auto px-8 py-10">
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-10">
+
+        <div>
+          <button
+  onClick={saveTranscript}
+  className="px-8 py-4 rounded-2xl border border-[#5EC8FF]/30 bg-[#0F1A28] hover:border-[#5EC8FF] transition-all"
+>
+  💾 Simpan History
+</button>
+
+          <div className="flex items-center gap-6">
+
+            <div className="w-24 h-24 rounded-3xl bg-gradient-to-r from-[#FF8B5E] to-[#5EC8FF] flex items-center justify-center">
+              <Icon
+                name="mic"
+                className="text-white text-5xl"
+              />
             </div>
 
-            {/* Kondisional Rendering: Jika kosong tampilkan UI khusus Empty State */}
-            {recentItems.length === 0 ? (
-              <div className="bg-surface-container-lowest border border-dashed border-outline-variant rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[350px]">
-                <div className="w-16 h-16 bg-surface-container-high rounded-full flex items-center justify-center text-on-surface-variant mb-4">
-                  <Icon name="history_toggle_off" className="text-3xl" />
-                </div>
-                <h4 className="font-title-lg text-title-lg text-on-surface mb-2">
-                  Belum Ada Aktivitas
-                </h4>
-                <p className="font-body-md text-body-md text-on-surface-variant max-w-sm mb-6">
-                  Anda belum melakukan transkripsi atau menggunakan AI Assistant. Mulai sekarang untuk melihat history Anda di sini.
+            <div>
+              <h1 className="text-5xl font-bold">
+  Halo, {user?.name} 👋
+</h1>
+
+<p className="text-xl mt-2 text-white">
+  Speech To Text
+</p>
+
+              <p className="text-slate-400 mt-2 text-lg">
+                Ubah suara menjadi teks secara realtime.
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      {/* Main Card */}
+      <div className="bg-[#162333]/80 backdrop-blur-xl border border-white/10 rounded-[32px] p-8">
+
+        <div className="flex justify-between items-center mb-8">
+          
+
+  <div>
+    <h2 className="text-3xl font-semibold">
+      Kontrol Perekaman
+    </h2>
+
+    <p className="text-slate-400 mt-2">
+      Klik tombol mulai untuk memulai perekaman suara Anda.
+    </p>
+  </div>
+
+  <div className="px-4 py-2 rounded-xl border border-white/10 bg-[#0F1A28]">
+
+    {isListening ? (
+      <span className="text-red-400 font-medium">
+        🔴 Sedang Merekam
+      </span>
+    ) : (
+      <span className="text-slate-400">
+        ⚪ Tidak Aktif
+      </span>
+    )}
+
+  </div>
+
+</div>
+
+        <div className="flex flex-wrap gap-4 mb-8">
+          <button
+  onClick={() => router.push("/text-to-speech")}
+  className="px-8 py-4 rounded-2xl border border-white/10 bg-[#0F1A28]"
+>
+  🔊 Text To Speech
+</button>
+
+<button
+  onClick={() => router.push("/assistant")}
+  className="px-8 py-4 rounded-2xl border border-white/10 bg-[#0F1A28]"
+>
+  🤖 AI Assistant
+</button>
+
+          {!isListening ? (
+            <button
+              onClick={startListening}
+              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-[#FF8B5E] to-[#5EC8FF] text-black font-semibold flex items-center gap-3"
+            >
+              <Icon name="mic" />
+              Mulai Rekam
+            </button>
+          ) : (
+            <button
+              onClick={stopListening}
+              className="px-8 py-4 rounded-2xl bg-red-500 text-white font-semibold flex items-center gap-3"
+            >
+              <Icon name="stop" />
+              Stop
+            </button>
+          )}
+
+          <button
+            onClick={saveTranscript}
+            className="px-8 py-4 rounded-2xl border border-white/10 bg-[#0F1A28]"
+          >
+            Simpan
+          </button>
+
+          <button
+  onClick={downloadTXT}
+  className="px-8 py-4 rounded-2xl border border-[#FF8B5E]/30 bg-[#0F1A28] hover:border-[#FF8B5E] transition-all"
+>
+  📄 Download TXT
+</button>
+
+        </div>
+
+        {/* Transcript */}
+        <div className="border border-white/10 rounded-[28px] p-6 bg-[#0F1A28]">
+
+          <h3 className="text-2xl font-semibold mb-2">
+            Hasil Transkripsi
+          </h3>
+
+          <p className="text-slate-400 mb-6">
+            Teks hasil transkripsi akan muncul di sini secara realtime.
+          </p>
+
+          <div className="min-h-[350px] flex items-center justify-center">
+
+            {transcript ? (
+              <div className="w-full">
+                <p className="leading-9 text-lg whitespace-pre-wrap">
+                  {transcript}
                 </p>
-                <div className="flex gap-4">
-                  <a href="/speech-to-text" className="px-4 py-2 bg-primary text-on-primary font-label-md rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-2">
-                    <Icon name="mic" /> Mulai STT
-                  </a>
-                  <a href="/text-to-speech" className="px-4 py-2 bg-surface-container-high text-on-surface font-label-md rounded-xl hover:bg-surface-container-highest transition-all active:scale-95 flex items-center gap-2">
-                    <Icon name="volume_up" /> Mulai TTS
-                  </a>
-                </div>
               </div>
             ) : (
-              <div className="space-y-gut-md">
-                {recentItems.map((item) => (
-                  <div
-                    key={item.title}
-                    className="bg-surface-container-lowest p-gut-md rounded-xl border border-outline-variant custom-shadow flex flex-col md:flex-row md:items-center justify-between gap-gut-md group hover:border-primary transition-colors"
-                  >
-                    <div className="flex items-center gap-gut-md">
-                      <div className="w-12 h-12 bg-surface-container rounded-lg flex items-center justify-center text-primary">
-                        <Icon name={item.icon} />
-                      </div>
-                      <div>
-                        <h4 className="font-title-lg text-title-lg text-on-surface text-[18px]">
-                          {item.title}
-                        </h4>
-                        <div className="flex items-center gap-gut-sm mt-gut-xs">
-                          <span className="px-2 py-0.5 bg-surface-container-high rounded text-[10px] font-bold text-on-secondary-container uppercase">
-                            {item.tag}
-                          </span>
-                          <span className="font-caption text-caption text-on-surface-variant flex items-center gap-1">
-                            <Icon name="schedule" className="text-[14px]" />{" "}
-                            {item.time}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-gut-sm">
-                      <button
-                        onClick={() => handleDownload(item.title, "PDF")}
-                        className="flex items-center gap-gut-xs px-gut-md py-gut-sm bg-surface-container hover:bg-primary-container hover:text-primary transition-all rounded-xl"
-                      >
-                        <Icon name="picture_as_pdf" className="text-base" /> PDF
-                      </button>
-                      <button
-                        onClick={() => handleDownload(item.title, "TXT")}
-                        className="flex items-center gap-gut-xs px-gut-md py-gut-sm bg-surface-container hover:bg-primary-container hover:text-primary transition-all rounded-xl"
-                      >
-                        <Icon name="article" className="text-base" /> TXT
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center">
+
+                <Icon
+                  name="graphic_eq"
+                  className="text-8xl mb-4 text-[#5EC8FF]"
+                />
+
+                <p className="text-slate-400 text-xl">
+                  Tekan tombol "Mulai Rekam"
+                  <br />
+                  untuk memulai transkripsi suara.
+                </p>
+
               </div>
             )}
-          </section>
 
-          <aside className="space-y-gut-2xl">
-            <div className="bg-surface-container-lowest p-gut-lg rounded-2xl border border-outline-variant custom-shadow">
-              <div className="flex items-center justify-between mb-gut-md">
-                <div>
-                  <p className="font-caption text-caption text-on-surface-variant uppercase tracking-wider">
-                    Cloud Storage
-                  </p>
-                  <h4 className="font-title-lg text-title-lg text-on-surface">
-                    {cloudStorage.toFixed(2)} GB / {totalStorage.toFixed(0)} GB
-                  </h4>
-                </div>
-                <Icon name="cloud" className="text-3xl text-primary" />
-              </div>
-              <div className="h-2 w-full rounded-full bg-surface-container-high overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${(cloudStorage / totalStorage) * 100}%` }}
-                />
-              </div>
-              <button
-                onClick={handleUpgradeStorage}
-                className="mt-gut-lg w-full py-3 bg-primary text-on-primary font-bold rounded-xl hover:shadow-lg transition-all active:scale-95"
-              >
-                Upgrade Storage
-              </button>
-            </div>
-          </aside>
+          </div>
+
         </div>
-      </main>
-    </AppShell>
-  );
+
+      </div>
+
+    </div>
+  </main>
+);
 }
+
